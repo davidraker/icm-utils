@@ -1,0 +1,33 @@
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "icm-lib-models-ieee1815-2"
+version = "0.1.0"
+description = "IEEE 1815.2 (DNP3) point models as pydantic classes, generated from the standard's own definitions."
+authors = ["David Raker <david.raker@pnnl.gov>"]
+license = "Apache License 2.0"
+readme = "README.md"
+repository = "https://github.com/interoperability-control-modules/icm-utils"
+homepage = "https://github.com/interoperability-control-modules/icm-utils"
+keywords = ["interoperability", "ieee1815-2", "models"]
+packages = [{ include = "icm", from = "src" }]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+pydantic = ">=2.11"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
