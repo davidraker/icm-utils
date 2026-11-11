@@ -368,6 +368,31 @@ def value_of(register):
     return _over(_value_of, (register,))
 
 
+def _set_bit(flag, word, index):
+    if word is None or word is MISSING:
+        return MISSING
+    mask = 1 << int(index)
+    return (int(word) | mask) if _flag(flag) else (int(word) & ~mask)
+
+
+def writable_bit(register: str, index: int, read: bool = False):
+    """One bit of another register as a point of its own that can also be written: reads take bit ``index`` of
+    ``register``; a write produces the register's word with that bit set or cleared, which the driver writes to the
+    register (``writable_bit(Status, 3)``). The word is the register's last value, or a fresh read when ``read`` is
+    true. Defines a derived point whose writes go to ``register``."""
+    index = int(index)
+    if not 0 <= index <= 15:
+        raise ValueError(f'writable_bit index must be 0 to 15, not {index}.')
+    reg = _register(register)
+    conv = c.call_func(lambda word: MISSING if word is None else bool((int(word) >> index) & 1), reg)
+    conv.inverse = c.call_func(_set_bit, c.this, reg, index)
+    conv.references = frozenset({_reference_name(register)})
+    conv.defines_value = True
+    conv.write_target = _reference_name(register)
+    conv.read_before_write = _flag(read)
+    return conv
+
+
 def sum_of(*args):
     """The sum of the named registers (and any literal numbers): ``sum_of(phase_a, phase_b, phase_c)``. Registers
     without a value are left out; MISSING when none has one. Defines a derived point: the point's own value is not used."""

@@ -156,7 +156,7 @@ _BUILTIN_METADATA: dict[str, tuple[float | None, type | None, tuple[str, ...]]] 
     'less_or_equal': (0.9, bool, ('le',)), 'greater_than': (0.9, bool, ('gt',)), 'greater_or_equal': (0.9, bool, ('ge',)),
     'in_range': (0.9, bool, ()), 'select': (1.0, None, ()), 'map': (1.0, None, ()),
     # over several registers (the point's own value is not carried)
-    'value_of': (0.0, None, ()), 'sum_of': (0.0, None, ()), 'mean_of': (0.0, float, ()), 'min_of': (0.0, None, ()), 'max_of': (0.0, None, ()),
+    'value_of': (0.0, None, ()), 'writable_bit': (0.3, bool, ()), 'sum_of': (0.0, None, ()), 'mean_of': (0.0, float, ()), 'min_of': (0.0, None, ()), 'max_of': (0.0, None, ()),
     'all_equal_of': (0.0, bool, ()), 'all_of': (0.0, bool, ()), 'any_of': (0.0, bool, ()),
     # type and value
     'cast_value': (0.9, None, ()), 'const': (0.0, None, ()), 'param': (0.0, None, ()), 'uuid4': (0.0, str, ()),

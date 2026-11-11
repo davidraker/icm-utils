@@ -50,6 +50,8 @@ class ValueTransform:
     _inverse: Callable[[dict], Any] | None
     defines_value: bool = False           #: the chain starts with a function over several registers (``sum_of`` ...):
                                           #: it defines the value from them and the point's own value is not an input
+    write_target: str | None = None       #: the register a write to this point is applied to (``writable_bit``), if any
+    read_before_write: bool = False       #: whether that register should be read afresh before the inverse is applied
 
     @property
     def invertible(self) -> bool:
@@ -105,8 +107,12 @@ def _compile(text: str, missing_reference: str, context_items: tuple) -> ValueTr
     forward = _pipeline(convs)
     inverse = _pipeline(list(reversed(inverses))) if not non_invertible else None
     defines_value = bool(convs) and bool(getattr(convs[0], 'defines_value', False))
+    write_target = getattr(convs[0], 'write_target', None) if convs else None
+    if write_target is not None and any(getattr(conv, 'inverse', None) is None for conv in convs[1:]):
+        inverse, non_invertible = None, non_invertible or (names[-1],)
     return ValueTransform(text, names, references, result_type, fidelity, missing_reference, non_invertible, forward, inverse,
-                          defines_value=defines_value)
+                          defines_value=defines_value, write_target=write_target,
+                          read_before_write=bool(getattr(convs[0], 'read_before_write', False)) if convs else False)
 
 
 def _parse(parser: TransformParser, text: str) -> _Expr:

@@ -209,3 +209,14 @@ def test_value_of_defines_a_derived_point_from_one_register():
     assert compile_value_transform('value_of(W)').forward(None, {'W': 42}) == 42
     with pytest.raises(ValueError, match='name of a register'):
         compile_value_transform('value_of(3)')
+
+
+def test_writable_bit_reads_a_bit_and_writes_the_word():
+    t = compile_value_transform('writable_bit(Status, 3)')
+    assert t.defines_value and t.write_target == 'Status' and not t.read_before_write and t.references == frozenset({'Status'})
+    assert t.forward(None, {'Status': 0b1000}) is True and t.forward(None, {'Status': 0}) is False
+    assert t.inverse(True, {'Status': 0b0001}) == 0b1001 and t.inverse(False, {'Status': 0b1001}) == 0b0001
+    assert t.inverse('true', {'Status': 0}) == 8 and t.inverse(True, {'Status': None}) is MISSING
+    assert compile_value_transform('writable_bit(Status, 3, True)').read_before_write
+    with pytest.raises(ValueError):
+        compile_value_transform('writable_bit(Status, 16)')
