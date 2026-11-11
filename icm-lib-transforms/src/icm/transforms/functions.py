@@ -151,8 +151,13 @@ def scale_decimal_int_signed(multiplier):
         Scale float value that is stored as a decimal number, not using standard signing rollover,
          as the PM800 Power Factor Registers.
     """
-    conv = c.if_(c.this < 0, multiplier * (0 - (c.this +32768)), multiplier * c.this)
-    conv.inverse = c.if_(c.this < 0, (0 - (c.this / float(multiplier))) - 0xFFFF, (c.this / float(multiplier)))
+    multiplier = _numeric(multiplier)
+    # A negative register holds -(magnitude) - 32768: the magnitude is -(raw + 32768), then scaled. Conversions define
+    # the arithmetic operators but not their reflected forms, so the conversion goes on the left.
+    conv = c.if_(c.this < 0, (c.naive(0) - (c.this + 32768)) * multiplier, c.this * multiplier)
+    # The inverse undoes exactly that: -(value / multiplier) - 32768 for a negative value. modbus_tk's inverse used
+    # 0xFFFF here and never round-tripped (it also referred to an undefined name, so it never ran).
+    conv.inverse = c.if_(c.this < 0, (c.naive(0) - (c.this / float(multiplier))) - 32768, c.this / float(multiplier))
     return conv
 
 def _numeric(arg):
