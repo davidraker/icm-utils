@@ -39,5 +39,12 @@ Editable installs of several members merge into one `icm` namespace at import ti
 
 ## Publishing
 
-Tag releases per project: `icm-lib-transforms-v0.1.0`, `icm-lib-models-sunspec-v0.1.0`. Build and publish from the
-project's directory with `poetry build` and `poetry publish`.
+Each project is released on its own, by pushing a tag named `<project>-v<version>`, for example
+`icm-lib-transforms-v0.1.0` or `icm-lib-models-sunspec-v0.1.0`. The `Publish to PyPI` workflow resolves the project
+directory from the tag, checks that the version in that directory's `pyproject.toml` matches, builds the sdist and
+wheel, runs `twine check`, and uploads them through PyPI trusted publishing from the `pypi` environment. Each PyPI
+project must list this repository, the `publish.yml` workflow and the `pypi` environment as a trusted publisher.
+Install order for consumers only matters in one place: `icm-lib-resources` requires `icm-lib-transforms`, so publish
+transforms first.
+
+The same can be done by hand from the project's directory with `poetry build` and `poetry publish`.

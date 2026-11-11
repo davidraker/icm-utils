@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "IEEE 1815.2 (DNP3) point models as pydantic classes, generated from the standard's own definitions."
 authors = [{name = "David Raker", email = "david.raker@pnnl.gov"}]
 license = "Apache-2.0"
+license-files = ["LICENSE", "COPYRIGHT.md"]
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
 keywords = ["interoperability", "ieee1815-2", "models"]

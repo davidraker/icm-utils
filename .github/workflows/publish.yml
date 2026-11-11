@@ -1,0 +1,69 @@
+name: Publish to PyPI
+
+# Publishes one of the library projects in this repository to PyPI when its
+# version tag is pushed. Tag format: <project>-v<version>, where <project> is
+# the project directory (for example icm-lib-transforms-v0.1.0) and <version>
+# matches [project].version in that directory's pyproject.toml. Publication
+# uses PyPI trusted publishing: register this repository, this workflow file
+# and the "pypi" environment as a publisher of each project on pypi.org; no
+# token is stored.
+
+on:
+  push:
+    tags:
+      - 'icm-lib-*-v*'
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    outputs:
+      project: ${{ steps.tag.outputs.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Resolve the project and version from the tag
+        id: tag
+        run: |
+          project="${GITHUB_REF_NAME%-v*}"
+          tag_version="${GITHUB_REF_NAME##*-v}"
+          if [ ! -f "$project/pyproject.toml" ]; then
+            echo "Tag $GITHUB_REF_NAME does not name a project directory ($project)" >&2
+            exit 1
+          fi
+          project_version="$(python -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb"))["project"]["version"])' "$project/pyproject.toml")"
+          if [ "$tag_version" != "$project_version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match $project/pyproject.toml version $project_version" >&2
+            exit 1
+          fi
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+      - name: Build sdist and wheel
+        working-directory: ${{ steps.tag.outputs.project }}
+        run: poetry build
+      - name: Check distribution metadata
+        working-directory: ${{ steps.tag.outputs.project }}
+        run: pipx run twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ${{ steps.tag.outputs.project }}/dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ needs.build.outputs.project }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
