@@ -11,12 +11,15 @@ runner when ``due`` should next be called; ``ResourceData`` provides the runner.
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
 from .definitions import DeliveryPolicy
 from .resource import message_values, same_value
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -129,3 +132,44 @@ class Assembler:
         self._arrived_since_emit.clear()
         self._first_arrival = None
         self._last_emit = now
+
+
+class Ticker:
+    """Calls ``assembler.due()`` when its ``next_due`` comes, on a gevent greenlet when gevent is present (the agents
+    run on it) and on a daemon thread otherwise; emits go to ``on_due``."""
+
+    def __init__(self, assembler, on_due: Callable):
+        self.assembler, self.on_due, self._stopped = assembler, on_due, False
+        try:
+            import gevent
+            self._sleep, self._spawn = gevent.sleep, gevent.spawn
+        except ImportError:                                         # pragma: no cover - the agents always have gevent
+            import threading
+            self._sleep = time.sleep
+            self._spawn = lambda fn: threading.Thread(target=fn, daemon=True).start()
+
+    def start(self):
+        self._spawn(self._run)
+
+    def cancel(self):
+        self._stopped = True
+
+    def _run(self):
+        while not self._stopped:
+            due = self.assembler.next_due()
+            if due is None:
+                self._stopped = True
+                break
+            delay = due - self.assembler.clock()
+            if delay > 0:
+                self._sleep(min(delay, 1.0))
+                continue
+            emit = self.assembler.due()
+            if emit is not None:
+                try:
+                    self.on_due(emit)
+                except Exception as e:                              # a consumer's failure must not stop the clock
+                    _log.warning(f'assembled delivery failed: {e!r}')
+            else:
+                self._sleep(0.05)
+

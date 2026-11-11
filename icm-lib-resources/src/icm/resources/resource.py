@@ -237,7 +237,7 @@ class ResourceData:
         encoded, under this resource's local topic. Without ``policy`` every publication is delivered as it arrives;
         with one, the :class:`~icm.resources.assembler.Assembler` decides when and with which fields, and the headers
         carry the assembly record (``icm-assembly``) and the definition's origin (``icm-origin``)."""
-        from .assembler import Assembler
+        from .assembler import Assembler, Ticker
         self._callback = callback
         self._policy = DeliveryPolicy(**policy) if isinstance(policy, dict) else policy
         self._assembler = Assembler(self._policy, self.required_fields) if self._policy and self._policy.kind != 'each' else None
@@ -280,51 +280,12 @@ class ResourceData:
 
     def _arm_ticker(self, on_due: Callable) -> None:
         """Run ``due`` when the assembler says the clock matters (a ``max_wait`` or an ``interval``)."""
+        from .assembler import Ticker
         assembler = self._assembler
         if assembler is None or assembler.next_due() is None or self._ticker is not None:
             return
-        self._ticker = _Ticker(assembler, on_due)
+        self._ticker = Ticker(assembler, on_due)
         self._ticker.start()
-
-
-class _Ticker:
-    """Calls ``assembler.due()`` when its ``next_due`` comes, on a gevent greenlet when gevent is present (the agents
-    run on it) and on a daemon thread otherwise; emits go to ``on_due``."""
-
-    def __init__(self, assembler, on_due: Callable):
-        self.assembler, self.on_due, self._stopped = assembler, on_due, False
-        try:
-            import gevent
-            self._sleep, self._spawn = gevent.sleep, gevent.spawn
-        except ImportError:                                         # pragma: no cover - the agents always have gevent
-            import threading
-            self._sleep = time.sleep
-            self._spawn = lambda fn: threading.Thread(target=fn, daemon=True).start()
-
-    def start(self):
-        self._spawn(self._run)
-
-    def cancel(self):
-        self._stopped = True
-
-    def _run(self):
-        while not self._stopped:
-            due = self.assembler.next_due()
-            if due is None:
-                self._stopped = True
-                break
-            delay = due - self.assembler.clock()
-            if delay > 0:
-                self._sleep(min(delay, 1.0))
-                continue
-            emit = self.assembler.due()
-            if emit is not None:
-                try:
-                    self.on_due(emit)
-                except Exception as e:                              # a consumer's failure must not stop the clock
-                    _log.warning(f'assembled delivery failed: {e!r}')
-            else:
-                self._sleep(0.05)
 
 
 class ResourceWriter:
