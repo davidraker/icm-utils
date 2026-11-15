@@ -76,3 +76,25 @@ def test_codec_block_edition_selects_the_pool():
     assert decoder_for(block)(data)['essReading'] == READING['essReading']
     with pytest.raises(Exception):
         encoder_for(block)({'essReading': {'readingMMDC': {}}})
+
+
+def test_scalars_are_brought_to_their_fields_types_before_encoding():
+    """A transform hands over what its source had: a SunSpec enum 0/1 for a boolean, 1.0 for an integer, '60.0' for a
+    float. protobuf's JSON parser refuses those; the codec brings them to the field's type on the way in."""
+    control = {'solarControl': {'solarControlFSCC': {'SolarControlScheduleFSCH': {'ValDCSG': {'crvPts': [
+        {'control': {'voltVarOperation': {'vVarParameter': {'VRefAdjEna': 1}}}}]}}}}}
+    decoded = codec.decode('solarmodule.SolarControlProfile', codec.encode('solarmodule.SolarControlProfile', control))
+    assert decoded['solarControl']['solarControlFSCC']['SolarControlScheduleFSCH']['ValDCSG']['crvPts'][0]['control']['voltVarOperation']['vVarParameter']['VRefAdjEna'] is True
+    for raw, expected in ((0, False), ('false', False), ('True', True)):
+        control['solarControl']['solarControlFSCC']['SolarControlScheduleFSCH']['ValDCSG']['crvPts'][0]['control']['voltVarOperation']['vVarParameter']['VRefAdjEna'] = raw
+        decoded = codec.decode('solarmodule.SolarControlProfile', codec.encode('solarmodule.SolarControlProfile', control))
+        # a false boolean is a default value, which protobuf's JSON mapping leaves out
+        assert decoded['solarControl']['solarControlFSCC']['SolarControlScheduleFSCH']['ValDCSG']['crvPts'][0]['control']['voltVarOperation']['vVarParameter'].get('VRefAdjEna', False) is expected
+    reading = {**READING, 'readingMessageInfo': {'messageInfo': {'identifiedObject': {'mRID': 'msg-1'}, 'messageTimeStamp': {'seconds': 1700000000.0, 'nanoseconds': '5'}}},
+               'essReading': {'readingMMXU': {'Hz': {'mag': '60.01'}}}}
+    decoded = codec.decode('essmodule.ESSReadingProfile', codec.encode('essmodule.ESSReadingProfile', reading))
+    assert decoded['essReading']['readingMMXU']['Hz']['mag'] == 60.01 and decoded['readingMessageInfo']['messageInfo']['messageTimeStamp'] == {'seconds': '1700000000', 'nanoseconds': 5}
+    from google.protobuf.json_format import ParseError
+    with pytest.raises(ParseError):       # a value no type accepts is still an error
+        codec.encode('solarmodule.SolarControlProfile', {'solarControl': {'solarControlFSCC': {'SolarControlScheduleFSCH': {'ValDCSG': {'crvPts': [
+            {'control': {'voltVarOperation': {'vVarParameter': {'VRefAdjEna': 'maybe'}}}}]}}}}})
