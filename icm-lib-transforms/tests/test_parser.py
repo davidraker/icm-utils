@@ -384,3 +384,20 @@ def test_all_null_repeated_group_is_skipped(parser):
     assert parser.build_transform_from_schema(schema).execute({'a': 1}) == {'x': 1}
 
 
+
+
+def test_curve_of_picks_the_stored_curve_a_function_names_or_the_buffer_it_shows():
+    """A served IEEE 1815.2 outstation publishes its stored curves under curves.<index> keyed by the buffer's point
+    indexes; a device publishing only the edit buffer shows one curve at a time. curve_of reads the function's curve
+    index and returns the curve either way, nothing when the index is 0 or the buffer shows another curve."""
+    from icm.transforms.parser import TransformParser
+    pattern = {"Crv[#]": {"#": "transform(curve_of('AO.217', 'curves', 'AO', 'AO.244'), as_list())",
+                          "ActPt": "transform[#, 246]()",
+                          "Pt[#]": {"#": "transform[#](pairs(249, 100, V, Var), take('246'))", "V": "transform[#, V]()", "Var": "transform[#, Var]()"}}}
+    transform = TransformParser().build_transform_from_schema([pattern])
+    stored = {'AO': {'217': 2, '244': 1}, 'curves': {'1': {'246': 1, '249': 0.9, '250': 0.4}, '2': {'246': 2, '249': 0.95, '250': 0.44, '251': 1.05, '252': -0.44, '253': 9, '254': 9}}}
+    assert transform.execute(stored) == {'Crv': [{'ActPt': 2, 'Pt': [{'V': 0.95, 'Var': 0.44}, {'V': 1.05, 'Var': -0.44}]}]}
+    buffer = {'AO': {'217': 1, '244': 1, '246': 1, '249': 0.92, '250': 0.44, '251': 1.08, '252': -0.44}}
+    assert transform.execute(buffer) == {'Crv': [{'ActPt': 1, 'Pt': [{'V': 0.92, 'Var': 0.44}]}]}
+    assert transform.execute({'AO': {'217': 1, '244': 3, '246': 1, '249': 0.92, '250': 0.44}}) == {}, 'the buffer shows another curve'
+    assert transform.execute({'AO': {'217': 0, '244': 1, '246': 1, '249': 0.92}}) == {}, 'index 0: no curve'

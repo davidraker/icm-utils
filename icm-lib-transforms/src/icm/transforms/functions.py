@@ -972,6 +972,35 @@ def when(path: str, expected):
     return c.call_func(_when, c.this, scoped_path(path), expected)
 
 
+def _curve_of(value, ref, area, buffer, selector):
+    if ref is None or not isinstance(value, dict):
+        return MISSING
+    try:
+        slot = str(int(round(float(ref))))
+    except (TypeError, ValueError):
+        return MISSING
+    if slot == '0':
+        return MISSING
+    stored = value.get(area)
+    if isinstance(stored, dict) and slot in stored:
+        return stored[slot]
+    if selector is not None and str(_resolve_path(value, selector)) in (slot, f'{slot}.0') and isinstance(value.get(buffer), dict):
+        return value[buffer]
+    return MISSING
+
+
+def curve_of(ref_path: str, area: str = 'curves', buffer: str | None = None, selector_path: str | None = None):
+    """
+        The stored curve (or schedule) a function references: ``ref_path`` is the quoted dotted path of the function's
+         curve-index point, resolved against the enclosing element; the result is ``<area>.<index>`` of that element,
+         a dict keyed by the buffer's point indexes, as a served IEEE 1815.2 outstation publishes its stored curves
+         (``curves.3.249``). When the element carries no such area but names ``buffer`` and ``selector_path`` (a device
+         publishing only the edit buffer, ``'AO'`` and ``'AO.244'``), the buffer table stands in while the selector
+         equals the reference. An index of 0 means no curve. E.g. ``transform(curve_of('AO.217', 'curves', 'AO', 'AO.244'), as_list())``.
+    """
+    return c.call_func(_curve_of, c.this, scoped_path(ref_path), area, buffer, selector_path)
+
+
 def when_equal(path_a: str, path_b: str):
     """
         Pass the value through only when the two fields named by the quoted dotted paths (resolved against

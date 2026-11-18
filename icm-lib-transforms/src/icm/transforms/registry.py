@@ -166,6 +166,7 @@ _BUILTIN_METADATA: dict[str, tuple[float | None, type | None, tuple[str, ...]]] 
     # lists and structure
     'take': (0.9, None, ()), 'mean': (0.5, float, ()), 'count': (0.3, int, ()), 'when': (0.7, None, ()),
     'when_equal': (0.7, None, ()), 'device_values': (1.0, None, ()), 'pairs': (1.0, list, ()), 'unpairs': (1.0, dict, ()),
+    'curve_of': (1.0, dict, ()),
     'series': (1.0, list, ()), 'unseries': (1.0, dict, ()), 'as_list': (1.0, list, ()), 'immediate': (1.0, None, ()),
     'scale_fields': (1.0, None, ()), 'prefix_keys': (1.0, None, ()), 'approx': (None, None, ()),
 }
